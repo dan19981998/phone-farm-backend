@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { writeFile, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { tmpdir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -9,6 +10,11 @@ import { screenshot } from './actions.js';
 
 const run = promisify(execFile);
 const binary = join(dirname(fileURLToPath(import.meta.url)), '../../tools/ocr');
+
+// The OCR binary (tools/ocr) is a compiled macOS Apple Vision executable. It
+// only runs on macOS. On any other host (e.g. the Windows box the backend is
+// deployed to) it doesn't exist / can't execute, so OCR is unavailable there.
+const ocrAvailable = platform() === 'darwin' && existsSync(binary);
 
 export interface TextBox {
     text: string;
@@ -26,7 +32,13 @@ export interface OcrResult {
 }
 
 // macOS Apple Vision binary (tools/ocr) — reads the phone screen.
+// Returns an empty result (no boxes) when OCR isn't available on this host,
+// instead of spawning the missing binary and crashing with ENOENT.
 export const ocrImage = async (jpegBase64: string): Promise<OcrResult> => {
+    if (!ocrAvailable) {
+        const image = await Jimp.read(Buffer.from(jpegBase64, 'base64'));
+        return { width: image.width, height: image.height, boxes: [] };
+    }
     const file = join(tmpdir(), `ocr_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
     await writeFile(file, Buffer.from(jpegBase64, 'base64'));
     try {
