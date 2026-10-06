@@ -1,4 +1,5 @@
 import { callKernel, callKernelForm } from './kernel.js';
+import type { TextBox } from './ocr.js';
 
 export const screenshot = (id: string) =>
     callKernel<{ image: string }>('/pic/screenshot', { id, jpg: true }).then((d) => d.image);
@@ -42,6 +43,12 @@ export const typeText = (id: string, text: string) => {
 };
 
 export const typeInstant = (id: string, text: string) => typeText(id, text);
+
+// Raw USB-HID typing of the whole string in one shot (handles upper/lowercase,
+// digits, symbols). No on-screen key tapping, no OCR — needs a focused text
+// field. Used for OCR-free flows like Spotlight app search on the Windows host.
+export const typeRaw = (id: string, text: string) =>
+    callKernel('/key/sendkey', { id, key: text });
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
@@ -314,24 +321,31 @@ export const tapSymbolKeyOcr = async (id: string, char: string) => {
         await wait(rand(120, 180));
     }
 
-    // Find the key on screen with OCR.
-    let result = await ocrDevice(id);
-    let box = findText(result, char);
-    let attempts = 0;
-    while (!box && attempts < 2) {
-        await wait(150);
-        result = await ocrDevice(id);
+    // Find the key on screen. OCR (macOS Apple Vision) is unavailable on the
+    // Windows host, so treat any OCR failure as "not found" and fall back to
+    // the hard-coded key position instead of crashing (spawn tools/ocr ENOENT).
+    let box: TextBox | null = null;
+    try {
+        let result = await ocrDevice(id);
         box = findText(result, char);
-        attempts++;
+        let attempts = 0;
+        while (!box && attempts < 2) {
+            await wait(150);
+            result = await ocrDevice(id);
+            box = findText(result, char);
+            attempts++;
+        }
+    } catch {
+        // OCR binary not present (e.g. running on Windows) — use coordinates.
     }
-    if (!box) {
-        // Fall back to hard-coded position.
-        const pt = getSymbolPoint(result.width, result.height, char);
+    if (box) {
+        await tap(id, box.x, box.y);
+    } else {
+        // Fall back to hard-coded position (screen dims from the screenshot).
+        const pt = getSymbolPoint(image.width, image.height, char);
         if (pt) {
             await tap(id, pt.x, pt.y);
         }
-    } else {
-        await tap(id, box.x, box.y);
     }
 
     await wait(rand(80, 140));
