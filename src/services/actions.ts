@@ -13,26 +13,19 @@ const pointer = (fun: string, id: string, x: number, y: number) =>
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const swipe = async (id: string, x0: number, y0: number, x1: number, y1: number) => {
-    // Reliability: iOS only registers a drag if there's a real touch-down before
-    // movement. Firing down+moves too fast makes the phone drop the gesture
-    // (nothing happens, or it reads as a tap). So: press, briefly hold, move
-    // smoothly over many steps, hold again, then lift.
-    const steps = 18;
-    const moveDelayMs = 10;
-    const holdMs = 50;
+    const steps = 12;
+    const delayMs = 5;
 
     await pointer('/mouse/down', id, x0, y0);
-    await delay(holdMs);
 
     for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         const x = x0 + (x1 - x0) * t;
         const y = y0 + (y1 - y0) * t;
         await pointer('/mouse/move', id, x, y);
-        await delay(moveDelayMs);
+        await delay(delayMs);
     }
 
-    await delay(holdMs);
     await pointer('/mouse/up', id, x1, y1);
 };
 
