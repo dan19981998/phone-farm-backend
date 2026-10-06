@@ -48,13 +48,14 @@ export const openApp = async (id: string, appName: string) => {
     await sendKey(id, 'Home');
     await delay(550);
 
-    // Open Spotlight with a SLOW, deliberate downward drag from the middle of
-    // the home screen. The home-screen Spotlight pull needs a slower gesture
-    // than in-app scrolling, so this uses its own timing (press, hold, many
-    // small steps, hold, release) rather than the shared fast swipe().
-    const sy = Math.round(height * 0.38);
-    const ey = Math.round(height * 0.80);
-    const steps = 25;
+    // Open Spotlight with a SLOW, deliberate, LONG downward drag. A short pull
+    // can be read as an icon drag instead of the Spotlight gesture, so make it
+    // cover most of the screen. Start below the top notification zone (~28%) and
+    // pull nearly to the bottom (~92%). Its own timing (press, hold, many small
+    // steps, hold, release) rather than the shared fast swipe().
+    const sy = Math.round(height * 0.28);
+    const ey = Math.round(height * 0.92);
+    const steps = 32;
     await pointerDown(id, cx, sy);
     await delay(90);
     for (let i = 1; i <= steps; i++) {
