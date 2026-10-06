@@ -50,6 +50,25 @@ export const typeInstant = (id: string, text: string) => typeText(id, text);
 export const typeRaw = (id: string, text: string) =>
     callKernel('/key/sendkey', { id, key: text });
 
+// Shifted symbols on a US hardware keyboard. Sending e.g. '!' as a raw key over
+// USB-HID types the BASE key ('1') with no Shift held, so '!' came out as '1'.
+// Each shifted symbol must be sent as a SHIFT+<base> combo via fn_key instead.
+const SHIFT_SYMBOLS: Record<string, string> = {
+    '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+    '^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
+    '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\',
+    ':': ';', '"': "'", '<': ',', '>': '.', '?': '/',
+    '~': '`',
+};
+
+// Type a single symbol character correctly over USB-HID. Shifted symbols go as
+// a SHIFT+<base> combo; unshifted symbols (- = [ ] ; ' , . / ` \) send raw.
+export const typeSymbol = (id: string, ch: string) => {
+    const base = SHIFT_SYMBOLS[ch];
+    if (base) return sendKey(id, `SHIFT+${base}`);
+    return typeRaw(id, ch);
+};
+
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
@@ -248,10 +267,8 @@ export const typeTextHuman = async (id: string, text: string, targetSeconds = 5,
             await callKernel('/key/sendkey', { id, key: ch });
             await wait(fast ? 30 : 50);
         } else if (SYMBOL_KEYS[ch]) {
-            // Symbol: type via USB-HID. Tapping on-screen symbol keys by
-            // coordinate is unreliable (e.g. '!' landing on the adjacent '?');
-            // HID sends the character directly and handles shifting internally.
-            await typeRaw(id, ch);
+            // Symbol: type via USB-HID with correct shifting (e.g. '!' = SHIFT+1).
+            await typeSymbol(id, ch);
         }
 
         const elapsed = Date.now() - charStart;
@@ -403,8 +420,7 @@ export const typeLiveKey = async (id: string, char: string) => {
         return;
     }
 
-    // Symbol — type via USB-HID. Tapping on-screen symbol keys by coordinate
-    // is unreliable (e.g. '!' landing on the adjacent '?'); HID sends the
-    // character directly and handles shifting internally so '!' types '!'.
-    await typeRaw(id, char);
+    // Symbol — type via USB-HID with correct shifting. Sending '!' raw types
+    // the base key '1' (no Shift), so shifted symbols go as SHIFT+<base>.
+    await typeSymbol(id, char);
 };

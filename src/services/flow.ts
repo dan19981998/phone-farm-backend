@@ -1,5 +1,5 @@
 import { ocrDevice, findText, type OcrResult, type TextBox } from './ocr.js';
-import { tap, sendKey, swipe, typeRaw, screenshot } from './actions.js';
+import { tap, sendKey, typeRaw, screenshot, pointerDown, pointerMove, pointerUp } from './actions.js';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -48,9 +48,23 @@ export const openApp = async (id: string, appName: string) => {
     await sendKey(id, 'Home');
     await delay(550);
 
-    // Swipe down from the middle of the home screen to open Spotlight search.
-    await swipe(id, cx, Math.round(height * 0.32), cx, Math.round(height * 0.70));
-    await delay(800);
+    // Open Spotlight with a SLOW, deliberate downward drag from the middle of
+    // the home screen. The home-screen Spotlight pull needs a slower gesture
+    // than in-app scrolling, so this uses its own timing (press, hold, many
+    // small steps, hold, release) rather than the shared fast swipe().
+    const sy = Math.round(height * 0.38);
+    const ey = Math.round(height * 0.80);
+    const steps = 25;
+    await pointerDown(id, cx, sy);
+    await delay(90);
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        await pointerMove(id, cx, Math.round(sy + (ey - sy) * t));
+        await delay(16);
+    }
+    await delay(90);
+    await pointerUp(id, cx, ey);
+    await delay(900);
 
     // Type the app name into the focused Spotlight field, then open top result.
     await typeRaw(id, appName);
