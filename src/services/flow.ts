@@ -1,5 +1,5 @@
 import { ocrDevice, findText, type OcrResult, type TextBox } from './ocr.js';
-import { tap, sendKey, typeRaw, screenshot, pointerDown, pointerMove, pointerUp } from './actions.js';
+import { tap } from './actions.js';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -31,48 +31,8 @@ export const tapWhenVisible = async (
     return box;
 };
 
-export const openApp = async (id: string, appName: string) => {
-    // Open an app via iOS Spotlight search — works without OCR, so it runs on
-    // the Windows host (where the Apple Vision OCR binary isn't available).
-    // Flow: go to the home screen -> swipe down to open Spotlight -> type the
-    // app name into the focused search field (raw USB-HID) -> press Return to
-    // launch the top hit.
-    const { Jimp } = await import('jimp');
-    const image = await Jimp.read(Buffer.from(await screenshot(id), 'base64'));
-    const { width, height } = image;
-    const cx = Math.round(width / 2);
-
-    // Make sure we're on the home screen (close any open app).
-    await sendKey(id, 'Home');
-    await delay(450);
-    await sendKey(id, 'Home');
-    await delay(550);
-
-    // Open Spotlight with a SLOW, deliberate, LONG downward drag. A short pull
-    // can be read as an icon drag instead of the Spotlight gesture, so make it
-    // cover most of the screen. Start below the top notification zone (~28%) and
-    // pull nearly to the bottom (~92%). Its own timing (press, hold, many small
-    // steps, hold, release) rather than the shared fast swipe().
-    const sy = Math.round(height * 0.28);
-    const ey = Math.round(height * 0.92);
-    const steps = 32;
-    await pointerDown(id, cx, sy);
-    await delay(90);
-    for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
-        await pointerMove(id, cx, Math.round(sy + (ey - sy) * t));
-        await delay(16);
-    }
-    await delay(90);
-    await pointerUp(id, cx, ey);
-    await delay(900);
-
-    // Type the app name into the focused Spotlight field, then open top result.
-    await typeRaw(id, appName);
-    await delay(1000);
-    await sendKey(id, 'Enter');
-    await delay(400);
-
+export const openApp = async (_id: string, appName: string) => {
+    // Disabled — app launching removed. Swipe gestures cover navigation.
     return { opened: appName };
 };
 
