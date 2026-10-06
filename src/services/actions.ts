@@ -114,11 +114,11 @@ const SYMBOL_KEYS: Record<string, { page: '123' | '#+='; x: number; y: number }>
     '&': { page: '123', x: 0.75, y: 0.755 },
     '@': { page: '123', x: 0.85, y: 0.755 },
     '"': { page: '123', x: 0.95, y: 0.755 },
-    '.': { page: '123', x: 0.25, y: 0.82 },
-    ',': { page: '123', x: 0.35, y: 0.82 },
-    '?': { page: '123', x: 0.45, y: 0.82 },
-    '!': { page: '123', x: 0.55, y: 0.82 },
-    "'": { page: '123', x: 0.65, y: 0.82 },
+    '.': { page: '123', x: 0.222, y: 0.818 },
+    ',': { page: '123', x: 0.36, y: 0.818 },
+    '?': { page: '123', x: 0.498, y: 0.818 },
+    '!': { page: '123', x: 0.636, y: 0.818 },
+    "'": { page: '123', x: 0.774, y: 0.818 },
     // #+= page
     '[': { page: '#+=', x: 0.05, y: 0.70 },
     ']': { page: '#+=', x: 0.15, y: 0.70 },
@@ -230,13 +230,14 @@ export const typeTextHuman = async (id: string, text: string, targetSeconds = 5,
             const layout = await getCachedKeyboardLayout(id, false);
             await tap(id, layout.points.spacebar.x, layout.points.spacebar.y);
         } else if (ch >= 'A' && ch <= 'Z') {
-            // Uppercase: shift + tap letter (must tap, not sendkey)
+            // Uppercase: shift + tap letter (must tap, not sendkey). Shift needs
+            // ~150ms to engage before the letter tap, else it types lowercase.
             const layout = await getCachedKeyboardLayout(id, false);
             await tap(id, layout.points.shift.x, layout.points.shift.y);
-            await wait(fast ? rand(20, 50) : rand(20, 50));
+            await wait(rand(150, 180));
             const pt = getLetterPoint(layout.width, layout.height, ch.toLowerCase());
             if (pt) await tap(id, pt.x, pt.y);
-            await wait(fast ? rand(20, 50) : rand(20, 50));
+            await wait(rand(150, 180));
         } else if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) {
             // Lowercase/digits: direct send (fastest)
             await callKernel('/key/sendkey', { id, key: ch });
