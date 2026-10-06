@@ -13,19 +13,26 @@ const pointer = (fun: string, id: string, x: number, y: number) =>
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const swipe = async (id: string, x0: number, y0: number, x1: number, y1: number) => {
-    const steps = 12;
-    const delayMs = 5;
+    // Reliability: iOS only registers a drag if there's a real touch-down before
+    // movement. Firing down+moves too fast makes the phone drop the gesture
+    // (nothing happens, or it reads as a tap). So: press, briefly hold, move
+    // smoothly over many steps, hold again, then lift.
+    const steps = 18;
+    const moveDelayMs = 10;
+    const holdMs = 50;
 
     await pointer('/mouse/down', id, x0, y0);
+    await delay(holdMs);
 
     for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         const x = x0 + (x1 - x0) * t;
         const y = y0 + (y1 - y0) * t;
         await pointer('/mouse/move', id, x, y);
-        await delay(delayMs);
+        await delay(moveDelayMs);
     }
 
+    await delay(holdMs);
     await pointer('/mouse/up', id, x1, y1);
 };
 
@@ -248,8 +255,10 @@ export const typeTextHuman = async (id: string, text: string, targetSeconds = 5,
             await callKernel('/key/sendkey', { id, key: ch });
             await wait(fast ? 30 : 50);
         } else if (SYMBOL_KEYS[ch]) {
-            // Symbol: use optimized tap
-            await tapSymbolKeyOcr(id, ch);
+            // Symbol: type via USB-HID. Tapping on-screen symbol keys by
+            // coordinate is unreliable (e.g. '!' landing on the adjacent '?');
+            // HID sends the character directly and handles shifting internally.
+            await typeRaw(id, ch);
         }
 
         const elapsed = Date.now() - charStart;
@@ -401,6 +410,8 @@ export const typeLiveKey = async (id: string, char: string) => {
         return;
     }
 
-    // Symbol
-    await tapSymbolKeyOcr(id, char);
+    // Symbol — type via USB-HID. Tapping on-screen symbol keys by coordinate
+    // is unreliable (e.g. '!' landing on the adjacent '?'); HID sends the
+    // character directly and handles shifting internally so '!' types '!'.
+    await typeRaw(id, char);
 };
