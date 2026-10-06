@@ -26,6 +26,26 @@ export const config = {
             `http://localhost:${serverPort}/api/drive/callback`,
         folderId: process.env.GOOGLE_DRIVE_FOLDER_ID?.trim() || '',
         tokenPath: process.env.GOOGLE_TOKEN_PATH?.trim() || '.drive-token.json',
+        allowedFolders: process.env.DRIVE_ALLOWED_FOLDERS?.split(',').map((s) => s.trim()).filter(Boolean) ?? [],
+    },
+    rapidapi: {
+        key: process.env.RAPIDAPI_KEY?.trim() || '',
+        host: process.env.RAPIDAPI_HOST?.trim() || 'instagram-scraper-stable-api.p.rapidapi.com',
+        demoMode: /^(1|true|yes|on)$/i.test(process.env.RAPIDAPI_DEMO_MODE?.trim() || ''),
     },
     uploadDir: process.env.UPLOAD_DIR?.trim() || 'uploads',
+    kernelUploadDir: process.env.KERNEL_UPLOAD_DIR?.trim() || '',
+    watcher: {
+        enabled: /^(1|true|yes|on)$/i.test(process.env.WATCHER_ENABLED?.trim() || ''),
+        deviceId: process.env.WATCHER_DEVICE_ID?.trim() || '',
+        pollMs: num(process.env.WATCHER_POLL_MS, 15_000),
+    },
+    stream: {
+        // Max frames per second for each live phone stream. Higher = smoother
+        // but heavier load on the kernel and USB bus.
+        fps: num(process.env.STREAM_FPS, 10),
+        // Number of parallel screenshot workers per stream. More workers mean
+        // we always serve the freshest frame instead of waiting on one request.
+        workers: num(process.env.STREAM_WORKERS, 2),
+    },
 } as const;

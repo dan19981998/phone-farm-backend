@@ -1,4 +1,4 @@
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, createReadStream } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import path from 'node:path';
@@ -6,7 +6,7 @@ import { google } from 'googleapis';
 import type { OAuth2Client } from 'google-auth-library';
 import { config } from '../config/index.js';
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
 export interface DriveVideo {
     id: string;
@@ -14,6 +14,12 @@ export interface DriveVideo {
     mimeType: string;
     sizeBytes: number | null;
     createdTime: string | null;
+    thumbnailLink: string | null;
+}
+
+export interface DriveFolder {
+    id: string;
+    name: string;
 }
 
 const createOAuthClient = (): OAuth2Client => {
@@ -82,16 +88,22 @@ export const listVideos = async (folderId?: string): Promise<DriveVideo[]> => {
     const res = await drive.files.list({
         q: `'${targetFolder}' in parents and mimeType contains 'video/' and trashed = false`,
         orderBy: 'createdTime desc',
-        fields: 'files(id, name, mimeType, size, createdTime)',
+        fields: 'files(id, name, mimeType, size, createdTime, thumbnailLink)',
         pageSize: 100,
     });
-    return (res.data.files ?? []).map((f) => ({
-        id: f.id ?? '',
-        name: f.name ?? '',
-        mimeType: f.mimeType ?? '',
-        sizeBytes: f.size ? Number(f.size) : null,
-        createdTime: f.createdTime ?? null,
-    }));
+    return (res.data.files ?? []).map((f) => {
+        const id = f.id ?? '';
+        const thumbnailLink = f.thumbnailLink ?? null;
+        if (id && thumbnailLink) thumbnailLinkCache.set(id, thumbnailLink);
+        return {
+            id,
+            name: f.name ?? '',
+            mimeType: f.mimeType ?? '',
+            sizeBytes: f.size ? Number(f.size) : null,
+            createdTime: f.createdTime ?? null,
+            thumbnailLink,
+        };
+    });
 };
 
 export const downloadVideo = async (fileId: string, destPath: string): Promise<string> => {
@@ -105,3 +117,108 @@ export const downloadVideo = async (fileId: string, destPath: string): Promise<s
     await pipeline(res.data, createWriteStream(absolute));
     return absolute;
 };
+
+
+const thumbnailLinkCache = new Map<string, string>();
+const thumbnailImageCache = new Map<string, { buffer: Buffer; contentType: string }>();
+
+export const fetchThumbnail = async (
+    fileId: string,
+): Promise<{ buffer: Buffer; contentType: string } | null> => {
+    const cached = thumbnailImageCache.get(fileId);
+    if (cached) return cached;
+
+    const auth = await authorizedClient();
+    let link = thumbnailLinkCache.get(fileId);
+    if (!link) {
+        const drive = google.drive({ version: 'v3', auth });
+        const meta = await drive.files.get({ fileId, fields: 'thumbnailLink' });
+        link = meta.data.thumbnailLink ?? undefined;
+    }
+    if (!link) return null;
+    const url = link.replace(/=s\d+$/, '=s400');
+    const token = (await auth.getAccessToken()).token;
+    const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const result = { buffer, contentType: res.headers.get('content-type') ?? 'image/jpeg' };
+    thumbnailImageCache.set(fileId, result);
+    return result;
+};
+
+export const uploadFileToDrive = async (
+    localPath: string,
+    originalName: string,
+    folderId?: string,
+): Promise<DriveVideo> => {
+    const targetFolder = folderId || config.drive.folderId;
+    if (!targetFolder) {
+        throw new Error('No Drive folder configured. Set GOOGLE_DRIVE_FOLDER_ID in the server .env.');
+    }
+    const auth = await authorizedClient();
+    const drive = google.drive({ version: 'v3', auth });
+
+    const mimeType = 'application/octet-stream';
+    const res = await drive.files.create({
+        requestBody: {
+            name: originalName,
+            parents: [targetFolder],
+        },
+        media: {
+            mimeType,
+            body: createReadStream(localPath),
+        },
+        fields: 'id, name, mimeType, size, createdTime, thumbnailLink',
+    });
+
+    const f = res.data;
+    const id = f.id ?? '';
+    const thumbnailLink = f.thumbnailLink ?? null;
+    if (id && thumbnailLink) thumbnailLinkCache.set(id, thumbnailLink);
+
+    return {
+        id,
+        name: f.name ?? originalName,
+        mimeType: f.mimeType ?? mimeType,
+        sizeBytes: f.size ? Number(f.size) : null,
+        createdTime: f.createdTime ?? null,
+        thumbnailLink,
+    };
+};
+
+export const listFolders = async (): Promise<DriveFolder[]> => {
+    const auth = await authorizedClient();
+    const drive = google.drive({ version: 'v3', auth });
+    const res = await drive.files.list({
+        q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        orderBy: 'name',
+        fields: 'files(id, name)',
+        pageSize: 100,
+    });
+    const folders = (res.data.files ?? []).map((f) => ({
+        id: f.id ?? '',
+        name: f.name ?? '',
+    })).filter((f) => f.id);
+
+    if (config.drive.allowedFolders.length > 0) {
+        const allowed = new Set(config.drive.allowedFolders);
+        return folders.filter((f) => allowed.has(f.id));
+    }
+    return folders;
+};
+
+export const getFolder = async (folderId?: string): Promise<DriveFolder | null> => {
+    const targetFolder = folderId || config.drive.folderId;
+    if (!targetFolder) return null;
+    const auth = await authorizedClient();
+    const drive = google.drive({ version: 'v3', auth });
+    const res = await drive.files.get({
+        fileId: targetFolder,
+        fields: 'id, name',
+    });
+    if (!res.data.id) return null;
+    return { id: res.data.id, name: res.data.name ?? '' };
+};
+

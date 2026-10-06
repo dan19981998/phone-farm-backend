@@ -4,3 +4,14 @@ dist/
 *.log
 .drive-token.json
 uploads/
+
+# OS / editor junk
+.DS_Store
+
+# Empty placeholder files
+Photos
+Privacy
+
+# Runtime state (device-specific, regenerated at runtime)
+.mirror-calibration.json
+follower-snapshots.json

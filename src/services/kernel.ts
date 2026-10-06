@@ -10,6 +10,8 @@ export interface KernelDevice {
     version?: string;
     ip?: string;
     state?: number;
+    width?: string;
+    height?: string;
 }
 
 const timeoutSignal = (ms: number): AbortSignal => {
@@ -67,4 +69,15 @@ export const callKernelForm = async <T = unknown>(
     });
     if (!res.ok) throw new Error(`Kernel ${fields.fun} failed: HTTP ${res.status}`);
     return check(fields.fun, (await res.json()) as KernelResponse<T>);
+};
+
+export const getDeviceDimensions = async (id: string): Promise<{ width: number; height: number }> => {
+    const devices = await listDevices();
+    const device = devices.find((d) => d.deviceid === id);
+    const width = Number(device?.width);
+    const height = Number(device?.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        throw new Error(`Could not get native dimensions for device ${id}`);
+    }
+    return { width, height };
 };
