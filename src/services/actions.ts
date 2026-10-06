@@ -44,31 +44,6 @@ export const typeText = (id: string, text: string) => {
 
 export const typeInstant = (id: string, text: string) => typeText(id, text);
 
-// Raw USB-HID typing of the whole string in one shot (handles upper/lowercase,
-// digits, symbols). No on-screen key tapping, no OCR — needs a focused text
-// field. Used for OCR-free flows like Spotlight app search on the Windows host.
-export const typeRaw = (id: string, text: string) =>
-    callKernel('/key/sendkey', { id, key: text });
-
-// Shifted symbols on a US hardware keyboard. Sending e.g. '!' as a raw key over
-// USB-HID types the BASE key ('1') with no Shift held, so '!' came out as '1'.
-// Each shifted symbol must be sent as a SHIFT+<base> combo via fn_key instead.
-const SHIFT_SYMBOLS: Record<string, string> = {
-    '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
-    '^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
-    '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\',
-    ':': ';', '"': "'", '<': ',', '>': '.', '?': '/',
-    '~': '`',
-};
-
-// Type a single symbol character correctly over USB-HID. Shifted symbols go as
-// a SHIFT+<base> combo; unshifted symbols (- = [ ] ; ' , . / ` \) send raw.
-export const typeSymbol = (id: string, ch: string) => {
-    const base = SHIFT_SYMBOLS[ch];
-    if (base) return sendKey(id, `SHIFT+${base}`);
-    return typeRaw(id, ch);
-};
-
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
@@ -267,8 +242,9 @@ export const typeTextHuman = async (id: string, text: string, targetSeconds = 5,
             await callKernel('/key/sendkey', { id, key: ch });
             await wait(fast ? 30 : 50);
         } else if (SYMBOL_KEYS[ch]) {
-            // Symbol: type via USB-HID with correct shifting (e.g. '!' = SHIFT+1).
-            await typeSymbol(id, ch);
+            // Symbol: tap the on-screen keyboard. The kernel's USB-HID sendkey
+            // cannot hold Shift, so symbols MUST be tapped on the iOS keyboard.
+            await tapSymbolKeyOcr(id, ch);
         }
 
         const elapsed = Date.now() - charStart;
@@ -420,7 +396,7 @@ export const typeLiveKey = async (id: string, char: string) => {
         return;
     }
 
-    // Symbol — type via USB-HID with correct shifting. Sending '!' raw types
-    // the base key '1' (no Shift), so shifted symbols go as SHIFT+<base>.
-    await typeSymbol(id, char);
+    // Symbol: tap the on-screen keyboard. The kernel's USB-HID sendkey cannot
+    // hold Shift, so symbols MUST be tapped on the iOS keyboard, not sent raw.
+    await tapSymbolKeyOcr(id, char);
 };
