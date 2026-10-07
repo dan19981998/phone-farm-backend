@@ -40,6 +40,22 @@ export const config = {
         deviceId: process.env.WATCHER_DEVICE_ID?.trim() || '',
         pollMs: num(process.env.WATCHER_POLL_MS, 15_000),
     },
+    // OCR-based read-only activity watcher: periodically screenshots each online
+    // phone, reads the screen, and logs app transitions (opened/closed/posted).
+    // Needs OCR (macOS only), so keep it on the Mac-side backend.
+    activityWatcher: {
+        enabled: /^(1|true|yes|on)$/i.test(process.env.ACTIVITY_WATCHER_ENABLED?.trim() || ''),
+        pollMs: num(process.env.ACTIVITY_WATCHER_POLL_MS, 8_000),
+    },
+    // Timelapse "DVR" recorder: saves one screenshot per online phone on an
+    // interval, kept for a rolling retention window (default 24h) so the
+    // Activity page can scrub back in time. Works on any host (no OCR needed).
+    recorder: {
+        enabled: /^(1|true|yes|on)$/i.test(process.env.RECORDER_ENABLED?.trim() || ''),
+        intervalMs: num(process.env.RECORDER_INTERVAL_MS, 5_000),
+        retentionMs: num(process.env.RECORDER_RETENTION_MS, 24 * 60 * 60 * 1000),
+        dir: process.env.RECORDER_DIR?.trim() || 'recordings',
+    },
     stream: {
         // Max frames per second for each live phone stream. Higher = smoother
         // but heavier load on the kernel and USB bus.

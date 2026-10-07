@@ -16,6 +16,9 @@ const binary = join(dirname(fileURLToPath(import.meta.url)), '../../tools/ocr');
 // deployed to) it doesn't exist / can't execute, so OCR is unavailable there.
 const ocrAvailable = platform() === 'darwin' && existsSync(binary);
 
+/** Whether the on-device OCR reader can actually run on this host. */
+export const isOcrAvailable = (): boolean => ocrAvailable;
+
 export interface TextBox {
     text: string;
     confidence: number;

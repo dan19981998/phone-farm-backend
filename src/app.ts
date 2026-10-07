@@ -10,6 +10,10 @@ import { actionsRouter } from './routes/actions.js';
 import { driveRouter } from './routes/drive.js';
 import { screenRouter } from './routes/screen.js';
 import { rapidApiRouter } from './routes/rapidapi.js';
+import { usersRouter } from './routes/users.js';
+import { phonesRouter } from './routes/phones.js';
+import { activityRouter } from './routes/activity.js';
+import { recordingsRouter } from './routes/recordings.js';
 
 // Built frontend lives in <server>/public (copy web/dist there before deploy).
 // dist/app.js -> ../public
@@ -32,6 +36,11 @@ export const createApp = () => {
     app.use('/api/devices', screenRouter);
     app.use('/api/drive', driveRouter);
     app.use('/api/rapidapi', rapidApiRouter);
+    app.use('/api/users', usersRouter);
+    app.use('/api/phones', phonesRouter);
+    app.use('/api/activity', activityRouter);
+    app.use('/api/recordings', recordingsRouter);
+
 
     // Serve the built frontend (if present) so one origin serves app + API.
     // This means the browser hits the backend directly — no CORS, no proxy —

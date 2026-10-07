@@ -71,6 +71,38 @@ export const callKernelForm = async <T = unknown>(
     return check(fields.fun, (await res.json()) as KernelResponse<T>);
 };
 
+// --- Device binding (iMouseXP "Equipment related" endpoints) --------------
+// A phone that is physically connected via its USB controller auto-registers
+// in /device/get. "Binding" it for use is: name it on the kernel, start its
+// screen mirror, and calibrate the mouse mapping so taps land correctly.
+// NOTE: the AssistiveTouch "Send Binding Key" step is GUI-only and cannot be
+// automated via this API.
+
+export const setKernelDevice = (id: string, name?: string, gid?: string): Promise<unknown> => {
+    const data: Record<string, unknown> = { id };
+    if (name !== undefined) data.name = name;
+    if (gid !== undefined) data.gid = gid;
+    return callKernel('/device/set', data);
+};
+
+export const deleteKernelDevice = (id: string): Promise<unknown> =>
+    callKernel('/device/del', { id });
+
+export const connectAirplay = (id: string): Promise<unknown> =>
+    callKernel('/device/airplay/connect', { id });
+
+export const disconnectAirplay = (id: string): Promise<unknown> =>
+    callKernel('/device/airplay/disconnect', { id });
+
+// cmd: 0 = start mouse-parameter collection (calibration). Used to teach the
+// kernel how this phone model maps hardware-mouse movement to screen coords.
+export const collectMouse = (id: string, cmd: number): Promise<unknown> =>
+    callKernel('/device/collection/mouse', { id, cmd });
+
+// Save the collected mouse parameters to the public library with a description.
+export const saveMouseParams = (id: string, describe: string): Promise<unknown> =>
+    callKernel('/device/collection/mouse/save', { id, describe });
+
 export const getDeviceDimensions = async (id: string): Promise<{ width: number; height: number }> => {
     const devices = await listDevices();
     const device = devices.find((d) => d.deviceid === id);

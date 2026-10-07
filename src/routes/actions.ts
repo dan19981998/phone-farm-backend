@@ -6,6 +6,7 @@ import * as actions from '../services/actions.js';
 import { ocrDevice } from '../services/ocr.js';
 import { openApp } from '../services/flow.js';
 import { restartMirror, calibrateMirror, getMirrorPoints } from '../services/recovery.js';
+import { logActivity } from '../services/activity.js';
 import { config } from '../config/index.js';
 
 export const actionsRouter = Router();
@@ -51,6 +52,7 @@ actionsRouter.post('/:id/key', (req, res) =>
 actionsRouter.post('/:id/type', (req, res) => {
     const seconds = Number(req.body.seconds);
     const targetSeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
+    logActivity(req.params.id, 'type', 'Typed a caption');
     return run(() => actions.typeTextHuman(req.params.id, req.body.text, targetSeconds))(res);
 });
 
@@ -66,13 +68,16 @@ actionsRouter.post('/:id/tap-text', (req, res) =>
     run(() => actions.tapText(req.params.id, req.body.text))(res),
 );
 
-actionsRouter.post('/:id/open-app', (req, res) =>
-    run(() => openApp(req.params.id, req.body.app || 'Instagram'))(res),
-);
+actionsRouter.post('/:id/open-app', (req, res) => {
+    const app = req.body.app || 'Instagram';
+    logActivity(req.params.id, 'open-app', `Opened ${app}`);
+    return run(() => openApp(req.params.id, app))(res);
+});
 
-actionsRouter.post('/:id/restart-mirror', (req, res) =>
-    run(() => restartMirror(req.params.id))(res),
-);
+actionsRouter.post('/:id/restart-mirror', (req, res) => {
+    logActivity(req.params.id, 'mirror', 'Restarted screen mirror');
+    return run(() => restartMirror(req.params.id))(res);
+});
 
 actionsRouter.get('/:id/mirror-calibration', (req, res) =>
     run(() => getMirrorPoints(req.params.id))(res),
@@ -127,6 +132,7 @@ actionsRouter.post('/:id/upload', upload.single('file'), (req, res) => {
         // If it times out, it likely means the shortcut already completed.
         try {
             const result = await actions.saveToAlbum(req.params.id, hostPath, 3_000);
+            logActivity(req.params.id, 'upload', `Uploaded "${originalFilename}" to camera roll`);
             return {
                 code: result.code,
                 message: result.message,
@@ -136,6 +142,7 @@ actionsRouter.post('/:id/upload', upload.single('file'), (req, res) => {
             // Timeout likely means the shortcut already ran and saved the file.
             // Return success so the UI closes immediately.
             if (err instanceof Error && err.message.includes('timeout')) {
+                logActivity(req.params.id, 'upload', `Uploaded "${originalFilename}" to camera roll`);
                 return {
                     code: 0,
                     message: 'Upload sent to device',

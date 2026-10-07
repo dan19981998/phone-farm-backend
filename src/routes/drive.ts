@@ -2,6 +2,8 @@ import { Router } from 'express';
 import * as drive from '../services/drive.js';
 import { saveDriveVideoToAlbum } from '../services/pipeline.js';
 import { getWatcherStatus, markSeen, startWatcher, stopWatcher } from '../services/watcher.js';
+import { logActivity } from '../services/activity.js';
+import { getPhoneMeta } from '../services/phones.js';
 
 export const driveRouter = Router();
 
@@ -69,15 +71,21 @@ driveRouter.post('/save', async (req, res) => {
         return;
     }
     const fileId = typeof req.body?.fileId === 'string' ? req.body.fileId : undefined;
-    const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId : undefined;
+    const requestedFolder = typeof req.body?.folderId === 'string' ? req.body.folderId : undefined;
     try {
+        // Fall back to this phone's assigned Drive folder when the client didn't
+        // specify one, so each phone pulls from its own folder.
+        const folderId = requestedFolder || (await getPhoneMeta(deviceId))?.driveFolderId || undefined;
         const videos = await drive.listVideos(folderId);
         if (videos.length === 0) throw new Error('No videos found in the Drive folder.');
         const video = fileId ? videos.find((v) => v.id === fileId) : videos[0];
         if (!video) throw new Error(`Video ${fileId} not found in the Drive folder.`);
         const result = await saveDriveVideoToAlbum(deviceId, video);
         const ok = result.code === 0 || result.code === 30;
-        if (ok) markSeen(video.id);
+        if (ok) {
+            markSeen(video.id);
+            logActivity(deviceId, 'save', `Saved "${video.name}" to camera roll`);
+        }
         res.json({ ok, result });
     } catch (err) {
         res.status(502).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
