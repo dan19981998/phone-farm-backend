@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { config } from './config/index.js';
 import { healthRouter } from './routes/health.js';
 import { devicesRouter } from './routes/devices.js';
@@ -7,6 +10,10 @@ import { actionsRouter } from './routes/actions.js';
 import { driveRouter } from './routes/drive.js';
 import { screenRouter } from './routes/screen.js';
 import { rapidApiRouter } from './routes/rapidapi.js';
+
+// Built frontend lives in <server>/public (copy web/dist there before deploy).
+// dist/app.js -> ../public
+const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 export const createApp = () => {
     const app = express();
@@ -25,6 +32,18 @@ export const createApp = () => {
     app.use('/api/devices', screenRouter);
     app.use('/api/drive', driveRouter);
     app.use('/api/rapidapi', rapidApiRouter);
+
+    // Serve the built frontend (if present) so one origin serves app + API.
+    // This means the browser hits the backend directly — no CORS, no proxy —
+    // and a single tunnel can expose the whole thing.
+    if (existsSync(publicDir)) {
+        app.use(express.static(publicDir));
+        // SPA fallback: non-API GETs return index.html so client routing works.
+        app.get('*', (req, res, next) => {
+            if (req.path.startsWith('/api/')) return next();
+            res.sendFile(path.join(publicDir, 'index.html'));
+        });
+    }
 
     return app;
 };
