@@ -52,12 +52,19 @@ export const textSize = async (id: string, value: number): Promise<void> => {
     const dragRange = 150; // Total drag distance up/down (pixels)
     const targetY = sliderY - (dragRange / 2) + (clampedValue / 100) * dragRange;
 
-    console.log(`[instagram] textSize: value=${value}, sliderX=${sliderX}, sliderY=${sliderY}, targetY=${targetY}`);
+    console.log(`[instagram] textSize: value=${value}, startY=${sliderY}, targetY=${targetY}`);
 
-    // Hold down, drag, then release
+    // Simulate continuous drag with multiple intermediate moves
     await pointerDown(id, sliderX, sliderY);
-    await new Promise(resolve => setTimeout(resolve, 100)); // Hold for 100ms
-    await pointerMove(id, sliderX, targetY);
-    await new Promise(resolve => setTimeout(resolve, 100)); // Hold at target
+
+    // Send 5 intermediate moves to simulate smooth drag
+    const steps = 5;
+    for (let i = 1; i <= steps; i++) {
+        const progress = i / steps;
+        const intermediateY = sliderY + (targetY - sliderY) * progress;
+        await pointerMove(id, sliderX, intermediateY);
+        await new Promise(resolve => setTimeout(resolve, 50)); // 50ms between moves
+    }
+
     await pointerUp(id, sliderX, targetY);
 };
