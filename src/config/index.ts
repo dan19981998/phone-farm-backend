@@ -1,4 +1,10 @@
 import 'dotenv/config';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PROJECT_ROOT = dirname(dirname(__dirname));
 
 const num = (value: string | undefined, fallback: number): number => {
     const parsed = Number(value);
@@ -34,7 +40,7 @@ export const config = {
         demoMode: /^(1|true|yes|on)$/i.test(process.env.RAPIDAPI_DEMO_MODE?.trim() || ''),
     },
     uploadDir: process.env.UPLOAD_DIR?.trim() || 'uploads',
-    dataDir: process.env.DATA_DIR?.trim() || 'data',
+    dataDir: process.env.DATA_DIR?.trim() || `${PROJECT_ROOT}/data`,
     kernelUploadDir: process.env.KERNEL_UPLOAD_DIR?.trim() || '',
     watcher: {
         enabled: /^(1|true|yes|on)$/i.test(process.env.WATCHER_ENABLED?.trim() || ''),
