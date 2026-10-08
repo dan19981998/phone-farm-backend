@@ -20,11 +20,14 @@ export const textSize = async (id: string, value: number): Promise<void> => {
     const clampedValue = Math.max(0, Math.min(100, value));
 
     // Map 0-100 to Y coordinate range
+    // value 0 = SLIDER_Y_MIN (600, smallest text)
+    // value 100 = SLIDER_Y_MAX (150, largest text)
     const targetY = SLIDER_Y_MIN + (clampedValue / 100) * (SLIDER_Y_MAX - SLIDER_Y_MIN);
 
-    // Drag from current position to target
-    // Start drag at slider X, move to target Y
-    await pointerDown(id, SLIDER_X, targetY);
+    // Start drag from middle of slider, drag to target
+    const startY = (SLIDER_Y_MIN + SLIDER_Y_MAX) / 2;
+    
+    await pointerDown(id, SLIDER_X, startY);
     await pointerMove(id, SLIDER_X, targetY);
     await pointerUp(id, SLIDER_X, targetY);
 };
