@@ -17,13 +17,13 @@ const run = (fn: () => Promise<unknown>) => async (res: Response) => {
 usersRouter.get('/', (_req, res) => run(() => listUsers())(res));
 
 usersRouter.post('/', (req, res) => {
-    const { name, role, phoneIds } = req.body ?? {};
-    return run(() => createUser({ name, role, phoneIds }))(res);
+    const { name, email, role, phoneIds, password } = req.body ?? {};
+    return run(() => createUser({ name, email, role, phoneIds, password }))(res);
 });
 
 usersRouter.patch('/:id', (req, res) => {
-    const { name, role, phoneIds } = req.body ?? {};
-    return run(() => updateUser(req.params.id, { name, role, phoneIds }))(res);
+    const { name, email, role, phoneIds, password } = req.body ?? {};
+    return run(() => updateUser(req.params.id, { name, email, role, phoneIds, password }))(res);
 });
 
 usersRouter.delete('/:id', (req, res) => run(() => deleteUser(req.params.id))(res));

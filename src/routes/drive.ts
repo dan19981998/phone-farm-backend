@@ -32,7 +32,7 @@ driveRouter.get('/callback', async (req, res) => {
     }
     try {
         await drive.handleCallback(code);
-        res.send('✅ Google Drive connected. You can close this tab.');
+        res.redirect('/admin/add-phone');
     } catch (err) {
         res.status(502).send(`Drive connect failed: ${err instanceof Error ? err.message : String(err)}`);
     }
