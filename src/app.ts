@@ -14,6 +14,7 @@ import { usersRouter } from './routes/users.js';
 import { phonesRouter } from './routes/phones.js';
 import { activityRouter } from './routes/activity.js';
 import { recordingsRouter } from './routes/recordings.js';
+import instagramRouter from './routes/instagram.js';
 
 // Built frontend lives in <server>/public (copy web/dist there before deploy).
 // dist/app.js -> ../public
@@ -40,6 +41,7 @@ export const createApp = () => {
     app.use('/api/phones', phonesRouter);
     app.use('/api/activity', activityRouter);
     app.use('/api/recordings', recordingsRouter);
+    app.use('/api/instagram', instagramRouter);
 
 
     // Serve the built frontend (if present) so one origin serves app + API.
