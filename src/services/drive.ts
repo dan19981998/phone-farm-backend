@@ -52,8 +52,6 @@ export const getAuthUrl = (): string => {
         access_type: 'offline',
         prompt: 'consent',
         scope: SCOPES,
-        device_id: 'phone-farm-server',
-        device_name: 'Phone Farm Backend',
     });
 };
 
