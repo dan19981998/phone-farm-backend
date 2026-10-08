@@ -1,33 +1,60 @@
 import { pointerDown, pointerMove, pointerUp } from './actions.js';
 
 /**
- * Instagram text size control via vertical slider on left corner.
- * Slider bounds (iPhone typical): Y from ~150 (smallest) to ~600 (largest)
- * The slider thumb (circle) is always around X=30
+ * Instagram text size control via vertical slider.
+ * Users calibrate by clicking exactly where the slider is on their phone.
+ * Once calibrated, we know the exact X,Y coordinate of the slider.
  * 
- * value: 0-100
- *   0 = smallest text (top of slider)
- *   100 = largest text (bottom of slider)
+ * Dragging strategy:
+ *   - value 0-100 maps to pointer movement from calibrated Y up/down
+ *   - 50% = at calibrated point (middle)
+ *   - 0% = drag down (smaller text)
+ *   - 100% = drag up (larger text)
  */
 
-// Configurable bounds (adjust based on device/testing)
-const SLIDER_X = 30;           // Circle X position (left corner)
-const SLIDER_Y_MIN = 600;      // Bottom of slider range (smallest text)
-const SLIDER_Y_MAX = 150;      // Top of slider range (largest text)
+interface CalibratedCoords {
+    x: number;
+    y: number;
+}
+
+// Storage for calibrated coordinates per device
+const calibrationData = new Map<string, CalibratedCoords>();
+
+// Fallback bounds if not calibrated
+const DEFAULT_SLIDER_X = 30;
+const DEFAULT_Y_MIN = 600;
+const DEFAULT_Y_MAX = 150;
+
+export const calibrate = async (id: string, x: number, y: number): Promise<CalibratedCoords> => {
+    const coords = { x, y };
+    calibrationData.set(id, coords);
+    console.log(`[instagram] Calibrated device ${id} at X=${x}, Y=${y}`);
+    return coords;
+};
+
+export const getCalibration = (id: string): CalibratedCoords | null => {
+    return calibrationData.get(id) || null;
+};
 
 export const textSize = async (id: string, value: number): Promise<void> => {
     // Clamp value to 0-100
     const clampedValue = Math.max(0, Math.min(100, value));
 
-    // Map 0-100 to Y coordinate range
-    // value 0 = SLIDER_Y_MIN (600, smallest text)
-    // value 100 = SLIDER_Y_MAX (150, largest text)
-    const targetY = SLIDER_Y_MIN + (clampedValue / 100) * (SLIDER_Y_MAX - SLIDER_Y_MIN);
+    // Get calibrated coordinates or use defaults
+    const calibrated = calibrationData.get(id);
+    const sliderX = calibrated?.x || DEFAULT_SLIDER_X;
+    const sliderY = calibrated?.y || (DEFAULT_Y_MIN + DEFAULT_Y_MAX) / 2;
 
-    // Start drag from middle of slider, drag to target
-    const startY = (SLIDER_Y_MIN + SLIDER_Y_MAX) / 2;
+    // Map 0-100 value to Y movement around calibrated point
+    // 50 = at calibration point (middle)
+    // 0 = drag downward (smaller text)
+    // 100 = drag upward (larger text)
     
-    await pointerDown(id, SLIDER_X, startY);
-    await pointerMove(id, SLIDER_X, targetY);
-    await pointerUp(id, SLIDER_X, targetY);
+    const dragRange = 150; // Total drag distance up/down (pixels)
+    const targetY = sliderY + (dragRange / 2 * (1 - (clampedValue / 50)));
+
+    // Drag from calibrated point to target
+    await pointerDown(id, sliderX, sliderY);
+    await pointerMove(id, sliderX, targetY);
+    await pointerUp(id, sliderX, targetY);
 };
