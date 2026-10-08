@@ -32,7 +32,7 @@ driveRouter.get('/callback', async (req, res) => {
     }
     try {
         await drive.handleCallback(code);
-        res.redirect('/admin/add-phone');
+        res.redirect('http://localhost:5173/admin/add-phone');
     } catch (err) {
         res.status(502).send(`Drive connect failed: ${err instanceof Error ? err.message : String(err)}`);
     }
