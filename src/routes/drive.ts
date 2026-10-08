@@ -123,13 +123,18 @@ driveRouter.get('/folders', async (_req, res) => {
 
 driveRouter.post('/folders', async (req, res) => {
     const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId : '';
-    const folderName = typeof req.body?.folderName === 'string' ? req.body.folderName : '';
-    if (!folderId || !folderName) {
-        res.status(400).json({ ok: false, error: 'folderId and folderName are required' });
+    if (!folderId) {
+        res.status(400).json({ ok: false, error: 'folderId is required' });
         return;
     }
     try {
-        const folder = await folders.addFolder(folderId, folderName);
+        // Fetch folder info from Google Drive to get the name automatically
+        const folderInfo = await drive.getFolder(folderId);
+        if (!folderInfo) {
+            res.status(400).json({ ok: false, error: 'Folder not found on Google Drive' });
+            return;
+        }
+        const folder = await folders.addFolder(folderId, folderInfo.name);
         res.json({ ok: true, folder });
     } catch (err) {
         res.status(400).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
