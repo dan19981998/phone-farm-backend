@@ -1,0 +1,11 @@
+[
+  {
+    "id": "17d348a5-9567-4f7a-987d-73da51f672e7",
+    "name": "Demo User",
+    "role": "user",
+    "phoneIds": [],
+    "createdAt": "2026-10-07T16:28:54.277Z",
+    "email": "user+17d348a5@phone-farm.local",
+    "password": ""
+  }
+]
