@@ -46,15 +46,18 @@ export const textSize = async (id: string, value: number): Promise<void> => {
     const sliderY = calibrated?.y || (DEFAULT_Y_MIN + DEFAULT_Y_MAX) / 2;
 
     // Map 0-100 value to Y movement around calibrated point
-    // 50 = at calibration point (middle)
-    // 0 = drag downward (smaller text)
-    // 100 = drag upward (larger text)
-    
+    // 0 = drag down (smaller text)
+    // 50 = at calibrated point (middle)
+    // 100 = drag up (larger text)
     const dragRange = 150; // Total drag distance up/down (pixels)
-    const targetY = sliderY + (dragRange / 2 * (1 - (clampedValue / 50)));
+    const targetY = sliderY - (dragRange / 2) + (clampedValue / 100) * dragRange;
 
-    // Drag from calibrated point to target
+    console.log(`[instagram] textSize: value=${value}, sliderX=${sliderX}, sliderY=${sliderY}, targetY=${targetY}`);
+
+    // Hold down, drag, then release
     await pointerDown(id, sliderX, sliderY);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Hold for 100ms
     await pointerMove(id, sliderX, targetY);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Hold at target
     await pointerUp(id, sliderX, targetY);
 };
