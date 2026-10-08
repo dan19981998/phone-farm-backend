@@ -12,8 +12,8 @@ import { pointerDown, pointerMove, pointerUp } from './actions.js';
 
 // Configurable bounds (adjust based on device/testing)
 const SLIDER_X = 30;           // Circle X position (left corner)
-const SLIDER_Y_MIN = 150;      // Top of slider range (smallest text)
-const SLIDER_Y_MAX = 600;      // Bottom of slider range (largest text)
+const SLIDER_Y_MIN = 600;      // Bottom of slider range (smallest text)
+const SLIDER_Y_MAX = 150;      // Top of slider range (largest text)
 
 export const textSize = async (id: string, value: number): Promise<void> => {
     // Clamp value to 0-100
