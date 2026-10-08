@@ -34,6 +34,7 @@ export const config = {
         demoMode: /^(1|true|yes|on)$/i.test(process.env.RAPIDAPI_DEMO_MODE?.trim() || ''),
     },
     uploadDir: process.env.UPLOAD_DIR?.trim() || 'uploads',
+    dataDir: process.env.DATA_DIR?.trim() || 'data',
     kernelUploadDir: process.env.KERNEL_UPLOAD_DIR?.trim() || '',
     watcher: {
         enabled: /^(1|true|yes|on)$/i.test(process.env.WATCHER_ENABLED?.trim() || ''),

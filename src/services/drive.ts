@@ -5,6 +5,7 @@ import path from 'node:path';
 import { google } from 'googleapis';
 import type { OAuth2Client } from 'google-auth-library';
 import { config } from '../config/index.js';
+import * as foldersService from './folders.js';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
@@ -189,24 +190,7 @@ export const uploadFileToDrive = async (
 };
 
 export const listFolders = async (): Promise<DriveFolder[]> => {
-    const auth = await authorizedClient();
-    const drive = google.drive({ version: 'v3', auth });
-    const res = await drive.files.list({
-        q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-        orderBy: 'name',
-        fields: 'files(id, name)',
-        pageSize: 100,
-    });
-    const folders = (res.data.files ?? []).map((f) => ({
-        id: f.id ?? '',
-        name: f.name ?? '',
-    })).filter((f) => f.id);
-
-    if (config.drive.allowedFolders.length > 0) {
-        const allowed = new Set(config.drive.allowedFolders);
-        return folders.filter((f) => allowed.has(f.id));
-    }
-    return folders;
+    return foldersService.listFolders();
 };
 
 export const getFolder = async (folderId?: string): Promise<DriveFolder | null> => {

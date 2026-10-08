@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as drive from '../services/drive.js';
+import * as folders from '../services/folders.js';
 import { saveDriveVideoToAlbum } from '../services/pipeline.js';
 import { getWatcherStatus, markSeen, startWatcher, stopWatcher } from '../services/watcher.js';
 import { logActivity } from '../services/activity.js';
@@ -113,10 +114,39 @@ driveRouter.post('/watcher/stop', (_req, res) => {
 
 driveRouter.get('/folders', async (_req, res) => {
     try {
-        const folders = await drive.listFolders();
-        res.json({ ok: true, folders });
+        const foldersList = await drive.listFolders();
+        res.json({ ok: true, folders: foldersList });
     } catch (err) {
         res.status(502).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    }
+});
+
+driveRouter.post('/folders', async (req, res) => {
+    const folderId = typeof req.body?.folderId === 'string' ? req.body.folderId : '';
+    const folderName = typeof req.body?.folderName === 'string' ? req.body.folderName : '';
+    if (!folderId || !folderName) {
+        res.status(400).json({ ok: false, error: 'folderId and folderName are required' });
+        return;
+    }
+    try {
+        const folder = await folders.addFolder(folderId, folderName);
+        res.json({ ok: true, folder });
+    } catch (err) {
+        res.status(400).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    }
+});
+
+driveRouter.delete('/folders/:folderId', async (req, res) => {
+    const folderId = req.params.folderId;
+    if (!folderId) {
+        res.status(400).json({ ok: false, error: 'folderId is required' });
+        return;
+    }
+    try {
+        await folders.removeFolder(folderId);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(400).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
     }
 });
 
