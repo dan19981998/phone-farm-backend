@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
@@ -14,6 +15,7 @@ import { usersRouter } from './routes/users.js';
 import { phonesRouter } from './routes/phones.js';
 import { activityRouter } from './routes/activity.js';
 import { recordingsRouter } from './routes/recordings.js';
+import videoRouter from './routes/video.js';
 
 // Built frontend lives in <server>/public (copy web/dist there before deploy).
 // dist/app.js -> ../public
@@ -24,6 +26,9 @@ export const createApp = () => {
 
     app.use(cors({ origin: config.corsOrigin }));
     app.use(express.json());
+
+    // Multer for file uploads (stored in memory for small videos, or temp disk)
+    const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB
 
     app.use((req, _res, next) => {
         console.log(`${req.method} ${req.url}`);
@@ -40,6 +45,7 @@ export const createApp = () => {
     app.use('/api/phones', phonesRouter);
     app.use('/api/activity', activityRouter);
     app.use('/api/recordings', recordingsRouter);
+    app.use('/api/video', upload.single('video'), videoRouter);
 
 
     // Serve the built frontend (if present) so one origin serves app + API.
