@@ -3,6 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { renderVideoWithText } from '../services/video.js';
+import { uploadFileToDrive } from '../services/drive.js';
+import * as folders from '../services/folders.js';
 
 const videoRouter = Router();
 
@@ -42,6 +44,39 @@ videoRouter.post('/render', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Invalid textLayers JSON' });
         }
 
+        const filtersJson = req.body.filters;
+        let filters = null;
+        if (filtersJson) {
+            try {
+                filters = JSON.parse(filtersJson);
+                console.log('[video] Parsed filters:', filters);
+            } catch (err) {
+                console.log('[video] Failed to parse filters:', err);
+                return res.status(400).json({ error: 'Invalid filters JSON' });
+            }
+        }
+
+        const imageLayersJson = req.body.imageLayers;
+        let imageLayers: any[] = [];
+        if (imageLayersJson) {
+            try {
+                imageLayers = JSON.parse(imageLayersJson);
+                console.log('[video] Parsed imageLayers:', imageLayers);
+            } catch (err) {
+                console.log('[video] Failed to parse imageLayers:', err);
+            }
+        }
+
+        const cropStart = parseFloat(req.body.cropStart || '0') || 0;
+        const cropEnd = parseFloat(req.body.cropEnd || '0') || 0;
+        console.log(`[video] Crop: ${cropStart}s - ${cropEnd}s`);
+
+        // Optional: upload the result to a Drive folder instead of returning the file
+        const driveFolderId = typeof req.body.driveFolderId === 'string' ? req.body.driveFolderId : '';
+        if (driveFolderId && !(await folders.listFolders()).some((f) => f.id === driveFolderId)) {
+            return res.status(400).json({ error: 'Selected Drive folder is not one of your available folders' });
+        }
+
         // Create temp output file
         const tempDir = os.tmpdir();
         const outputFilename = `edited-${Date.now()}.mp4`;
@@ -62,7 +97,22 @@ videoRouter.post('/render', async (req: Request, res: Response) => {
         console.log(`[video] Starting render: ${inputVideoPath} -> ${outputPath}`);
 
         // Render video with FFmpeg
-        await renderVideoWithText(inputVideoPath, textLayers, outputPath);
+        await renderVideoWithText(inputVideoPath, textLayers, imageLayers, outputPath, filters, cropStart, cropEnd);
+
+        const cleanupTempFiles = () => Promise.all([
+            (videoFile.buffer ? fs.unlink(inputVideoPath).catch(() => { }) : Promise.resolve()),
+            fs.unlink(outputPath).catch(() => { }),
+        ]);
+
+        if (driveFolderId) {
+            try {
+                const uploaded = await uploadFileToDrive(outputPath, outputFilename, driveFolderId);
+                console.log(`[video] Uploaded to Drive folder ${driveFolderId}: ${uploaded.name}`);
+                return res.json({ ok: true, file: uploaded });
+            } finally {
+                await cleanupTempFiles();
+            }
+        }
 
         console.log('[video] Render complete, reading file');
 
@@ -76,10 +126,7 @@ videoRouter.post('/render', async (req: Request, res: Response) => {
         res.send(fileData);
 
         // Clean up temp files
-        await Promise.all([
-            (videoFile.buffer ? fs.unlink(inputVideoPath).catch(() => { }) : Promise.resolve()),
-            fs.unlink(outputPath).catch(() => { }),
-        ]);
+        await cleanupTempFiles();
 
         console.log('[video] Render complete and cleaned up');
     } catch (err) {

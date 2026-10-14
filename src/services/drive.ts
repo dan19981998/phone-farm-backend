@@ -161,7 +161,7 @@ export const uploadFileToDrive = async (
     const auth = await authorizedClient();
     const drive = google.drive({ version: 'v3', auth });
 
-    const mimeType = 'application/octet-stream';
+    const mimeType = 'video/mp4';
     const res = await drive.files.create({
         requestBody: {
             name: originalName,

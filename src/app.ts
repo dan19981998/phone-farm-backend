@@ -4,7 +4,6 @@ import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-import { config } from './config/index.js';
 import { healthRouter } from './routes/health.js';
 import { devicesRouter } from './routes/devices.js';
 import { actionsRouter } from './routes/actions.js';
@@ -24,11 +23,18 @@ const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 
 export const createApp = () => {
     const app = express();
 
-    app.use(cors({ origin: config.corsOrigin }));
+    // CORS: allow all origins in dev
+    app.use(cors());
     app.use(express.json());
 
-    // Multer for file uploads (stored in memory for small videos, or temp disk)
-    const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB
+    const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: {
+            fileSize: 500 * 1024 * 1024, // 500MB for video
+            fieldSize: 50 * 1024 * 1024, // 50MB for JSON fields
+            fields: 10, // allow up to 10 fields
+        }
+    });
 
     app.use((req, _res, next) => {
         console.log(`${req.method} ${req.url}`);
